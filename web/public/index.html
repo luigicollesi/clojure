@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calculadora de Trastes</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101319; color: #f2f4f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 960px; margin: 0 auto; padding: 70px 20px; }
+    h1 { font-size: clamp(2rem, 6vw, 3.6rem); margin: 8px 0; letter-spacing: -.04em; }
+    h2 { margin: 0; font-size: 1.25rem; }
+    p { color: #aeb8c5; line-height: 1.5; }
+    small { color: #91a0b2; }
+    .tag { color: #81c7fb; text-transform: uppercase; letter-spacing: .15em; font-size: .78rem; font-weight: 700; }
+    .panel { margin-top: 28px; padding: 26px; background: #1a2029; border: 1px solid #303948; border-radius: 16px; }
+    form { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; }
+    label { flex: 1; min-width: 180px; font-size: .9rem; font-weight: 650; }
+    input { display: block; width: 100%; margin-top: 8px; padding: 13px; color: inherit; background: #101319; border: 1px solid #465469; border-radius: 8px; font: inherit; }
+    button { padding: 14px 24px; border: 0; border-radius: 8px; background: #76c3ff; color: #08121c; font: inherit; font-weight: 750; cursor: pointer; }
+    button:hover { background: #a4d8ff; }
+    .heading { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 570px; text-align: right; font-variant-numeric: tabular-nums; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid #303948; }
+    th { color: #b7c7d9; font-size: .82rem; font-weight: 650; }
+    th:first-child, td:first-child { text-align: left; }
+    tr:last-child td { border-bottom: 0; }
+    #mensagem { min-height: 1.5rem; margin-bottom: 0; }
+    #mensagem:not(:empty) { color: #ffc387; }
+    footer { margin-top: 30px; }
+    @media (max-width: 600px) { main { padding-top: 40px; } .panel { padding: 18px; } button { width: 100%; } }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="tag">Luthieria · Escala temperada</span>
+    <h1>Calculadora de Trastes</h1>
+    <p>Informe o comprimento da escala e a quantidade de trastes para calcular as posições em milímetros.</p>
+
+    <section class="panel" aria-label="Parâmetros">
+      <form id="formulario">
+        <label for="escala">Escala (mm)<input id="escala" name="escala" inputmode="decimal" value="650" required></label>
+        <label for="trastes">Quantidade de trastes<input id="trastes" name="trastes" type="number" min="1" max="36" value="22" required></label>
+        <button type="submit">Calcular</button>
+      </form>
+      <p id="mensagem" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" id="resultado" aria-label="Resultados" hidden>
+      <div class="heading"><h2>Medidas dos trastes</h2><small id="resumo"></small></div>
+      <div class="scroll"><table>
+        <thead><tr><th>Traste</th><th>Espaçamento (mm)</th><th>Até a pestana (mm)</th><th>Até a ponte (mm)</th></tr></thead>
+        <tbody id="linhas"></tbody>
+      </table></div>
+    </section>
+    <footer><small>Fórmula: dₙ = L × (1 − 2<sup>−n/12</sup>). Cálculo realizado pela API Clojure.</small></footer>
+  </main>
+  <script>
+    const form = document.querySelector('#formulario');
+    const mensagem = document.querySelector('#mensagem');
+    const resultado = document.querySelector('#resultado');
+    const linhas = document.querySelector('#linhas');
+    const mm = valor => Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    async function calcular(evento) {
+      evento?.preventDefault();
+      resultado.hidden = true;
+      mensagem.textContent = 'Calculando...';
+      const parametros = new URLSearchParams(new FormData(form));
+      try {
+        const resposta = await fetch('/api/trastes?' + parametros);
+        const dados = await resposta.json();
+        if (!resposta.ok) throw new Error(dados.erro || 'Não foi possível calcular.');
+
+        linhas.replaceChildren(...dados.trastes.map(traste => {
+          const linha = document.createElement('tr');
+          [traste.traste, traste.espacamento_mm, traste.distancia_pestana_mm, traste.distancia_ponte_mm]
+            .forEach((valor, indice) => {
+              const celula = document.createElement('td');
+              celula.textContent = indice === 0 ? valor : mm(valor);
+              linha.append(celula);
+            });
+          return linha;
+        }));
+        document.querySelector('#resumo').textContent = dados.quantidade_trastes + ' trastes · escala ' + mm(dados.escala_mm) + ' mm';
+        resultado.hidden = false;
+        mensagem.textContent = '';
+      } catch (erro) {
+        mensagem.textContent = erro.message || 'Erro ao consultar a API.';
+      }
+    }
+
+    form.addEventListener('submit', calcular);
+    calcular();
+  </script>
+</body>
+</html>

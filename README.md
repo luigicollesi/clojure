@@ -1,64 +1,46 @@
-# Calculadora de trastes — API Clojure
+# Calculadora de Trastes
 
-API REST para calcular a posição dos trastes de um violão a partir do comprimento da escala (em milímetros), usando temperamento igual de 12 semitons.
+Monorepo minimalista com dois projetos independentes:
 
-## Requisitos
+- **`api/`** — API REST em Clojure (Ring/Jetty), com cálculos e validação.
+- **`web/`** — frontend em Node.js e HTML/CSS/JavaScript, sem dependências npm.
 
-- Java 17 ou superior
-- [Clojure CLI](https://clojure.org/guides/install_clojure)
+## Executar localmente
 
-## Executar
+Requisitos: Java 17+, [Clojure CLI](https://clojure.org/guides/install_clojure) e Node.js 22+ (recomendado: versão LTS).
+
+Terminal 1 — API Clojure (porta 3000):
 
 ```bash
+cd api
 clojure -M:run
 ```
 
-O servidor inicia em `http://localhost:3000`. A porta pode ser alterada com a variável de ambiente `PORT`.
+Terminal 2 — frontend Node.js (porta 3001):
 
-## Endpoints
+```bash
+cd web
+npm start
+```
 
-| Método | Rota | Descrição |
+Abra **http://localhost:3001**. O frontend chama a API pelo proxy Node, sem depender de CORS no navegador.
+
+## Configuração
+
+- `PORT`: porta do servidor Clojure (padrão `3000`).
+- `WEB_PORT`: porta do servidor Node (padrão `3001`).
+- `API_URL`: URL do backend acessível pelo Node (padrão `http://127.0.0.1:3000`).
+
+## API
+
+| Método | Rota | Parâmetros |
 | --- | --- | --- |
-| GET | `/api/health` | Verifica se a API está disponível |
-| GET | `/api/trastes?escala=650&trastes=22` | Calcula os trastes via parâmetros na URL |
-| POST | `/api/trastes` | Calcula os trastes via JSON |
+| GET | `/api/health` | Nenhum |
+| GET | `/api/trastes?escala=650&trastes=22` | `escala` obrigatória, `trastes` opcional |
+| POST | `/api/trastes` | JSON `{"escala":650,"trastes":22}` |
 
-`escala` é obrigatória (100–1500 mm). `trastes` é opcional (1–36, padrão 22). Valores com vírgula decimal também são aceitos como texto.
+Escala: 100–1500 mm. Trastes: 1–36, padrão 22. As medidas são retornadas em milímetros com duas casas decimais.
 
-### Requisição GET
+O proxy do frontend expõe apenas os GETs usados pela interface; o POST continua disponível diretamente na API Clojure.
 
-```bash
-curl "http://localhost:3000/api/trastes?escala=650&trastes=22"
-```
-
-### Requisição POST
-
-```bash
-curl -X POST "http://localhost:3000/api/trastes" \
-  -H "Content-Type: application/json" \
-  -d '{"escala":650,"trastes":22}'
-```
-
-### Resposta
-
-```json
-{
-  "escala_mm": 650.0,
-  "formula": "d_n = L * (1 - 1 / 2^(n/12))",
-  "quantidade_trastes": 22,
-  "trastes": [
-    {
-      "traste": 1,
-      "espacamento_mm": 36.48,
-      "distancia_ponte_mm": 613.52,
-      "distancia_pestana_mm": 36.48
-    }
-  ]
-}
-```
-
-O exemplo foi abreviado: a resposta real inclui todos os trastes solicitados.
-
-Retornos de erro são JSON: `400` para entrada inválida, `404` para rota inexistente e `500` para erro interno. A API permite CORS de qualquer origem (sem credenciais).
-
-**Observação:** o GitHub armazena o código; para disponibilizar uma URL pública da API, é necessário executar o servidor em uma máquina ou plataforma com suporte a Java.
+**Nota:** hospedar os arquivos no GitHub não coloca os servidores no ar. É necessário executar cada serviço para disponibilizar a aplicação.
